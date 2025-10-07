@@ -7,6 +7,113 @@ describe("EchoChain V2 - Collaborative Voice Story Protocol", () => {
   const wallet2 = accounts.get("wallet_2")!;
   const wallet3 = accounts.get("wallet_3")!;
 
+  describe("User Registration", () => {
+    it("should allow users to register with unique usernames", () => {
+      const username1 = "alice";
+      const username2 = "bob";
+
+      // First user registration should succeed
+      const { result: result1 } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username1)],
+        wallet1
+      );
+      expect(result1).toBeOk(Cl.bool(true));
+
+      // Second user with different username should succeed
+      const { result: result2 } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username2)],
+        wallet2
+      );
+      expect(result2).toBeOk(Cl.bool(true));
+
+      // Verify users were registered
+      const { result: user1 } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "get-user",
+        [Cl.principal(wallet1)],
+        wallet1
+      );
+      expect(user1).not.toBeNone();
+
+      const { result: user2 } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "get-user",
+        [Cl.principal(wallet2)],
+        wallet2
+      );
+      expect(user2).not.toBeNone();
+    });
+
+    it("should prevent duplicate usernames", () => {
+      const username = "alice";
+
+      // First registration should succeed
+      const { result: first } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username)],
+        wallet1
+      );
+      expect(first).toBeOk(Cl.bool(true));
+
+      // Second registration with same username should fail
+      const { result: second } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username)],
+        wallet2
+      );
+      expect(second).toBeErr(Cl.uint(112)); // ERR-USERNAME-EXISTS
+    });
+
+    it("should prevent users from registering twice", () => {
+      const username1 = "alice";
+      const username2 = "alice_v2";
+
+      // First registration should succeed
+      const { result: first } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username1)],
+        wallet1
+      );
+      expect(first).toBeOk(Cl.bool(true));
+
+      // Second registration by same user should fail
+      const { result: second } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8(username2)],
+        wallet1
+      );
+      expect(second).toBeErr(Cl.uint(113)); // ERR-USER-ALREADY-REGISTERED
+    });
+
+    it("should return none for unregistered users", () => {
+      const { result: user } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "get-user",
+        [Cl.principal(wallet1)],
+        wallet1
+      );
+      expect(user).toBeNone();
+    });
+
+    it("should handle empty username", () => {
+      const { result } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "register-user",
+        [Cl.stringUtf8("")],
+        wallet1
+      );
+      expect(result).toBeOk(Cl.bool(true)); // Empty string is valid
+    });
+  });
+
   describe("Story Creation", () => {
     it("should create a new story with initial prompt", () => {
       const prompt = "Once upon a time in a blockchain...";

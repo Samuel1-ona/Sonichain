@@ -21,10 +21,12 @@
 (define-constant ERR-ALREADY-FINALIZED (err u109)) ;; round already finalized
 (define-constant ERR-VOTING-NOT-ENDED (err u110))  ;; cannot finalize before round end
 (define-constant ERR-ALREADY-SUBMITTED (err u111)) ;; user already submitted in this round
+(define-constant ERR-USERNAME-EXISTS (err u112)) ;; username already taken
+(define-constant ERR-USER-ALREADY-REGISTERED (err u113)) ;; user already registered
 
 ;; Configuration
 (define-constant CONTRACT-OWNER tx-sender)
-(define-constant VOTING-PERIOD u120) ;; number of blocks the round stays open for voting.
+(define-constant VOTING-PERIOD u144) ;; number of blocks the round stays open for voting.
 (define-constant MIN-BLOCKS-TO-SEAL u5) ;;minimum finalized blocks required to seal a story.
 (define-constant MAX-BLOCKS-PER-STORY u50) ;; hard cap on blocks in a story.
 (define-constant PLATFORM-FEE-BPS u250) ;; platform fee in basis points taken from bounty on sealing.
@@ -139,6 +141,21 @@
     user: principal,                 ;; user of the submission
   }
   { submission-id: uint }             ;; submission-id
+)
+
+;; User registration: map principal to username and registration data
+(define-map users
+  { user: principal }                 ;; user principal
+  {
+    username: (string-utf8 50),       ;; username (max 50 chars)
+    registered-at: uint,              ;; block height when registered
+  }
+)
+
+;; Username to principal mapping (for uniqueness check)
+(define-map usernames
+  { username: (string-utf8 50) }      ;; username
+  { user: principal }                 ;; user principal
 )
 
 ;; =============================================================================
@@ -261,6 +278,60 @@
   )
 )
 
+;; Get user registration data by principal
+(define-read-only (get-user (user principal))
+  (map-get? users { user: user })
+)
+
+
+
+
+;; =============================================================================
+;; PUBLIC FUNCTIONS - USER REGISTRATION
+;; =============================================================================
+
+;; register-user(username)
+;; Purpose: Register a user with a unique username.
+;; Params:
+;;  - username: (string-utf8 50) desired username (max 50 characters).
+;; Preconditions:
+;;  - User (tx-sender) is not already registered.
+;;  - Username is not already taken by another user.
+;; Effects:
+;;  - Creates user record in `users` map with username and registration timestamp.
+;;  - Creates reverse mapping in `usernames` map for uniqueness enforcement.
+;; Events: Emits "user-registered" with user principal and username.
+;; Returns: (ok true) on success, or appropriate error code.
+(define-public (register-user (username (string-utf8 50)))
+  (let (
+      (existing-user (map-get? users { user: tx-sender }))
+      (existing-username (map-get? usernames { username: username }))
+    )
+    (begin
+      ;; Validations
+      (asserts! (is-none existing-user) ERR-USER-ALREADY-REGISTERED)
+      (asserts! (is-none existing-username) ERR-USERNAME-EXISTS)
+
+      ;; Register user
+      (map-set users { user: tx-sender } {
+        username: username,
+        registered-at: stacks-block-height,
+      })
+
+      ;; Track username for uniqueness
+      (map-set usernames { username: username } { user: tx-sender })
+
+      (print {
+        event: "user-registered",
+        user: tx-sender,
+        username: username,
+      })
+
+      (ok true)
+    )
+  )
+)
+
 ;; =============================================================================
 ;; PUBLIC FUNCTIONS - STORY LIFECYCLE
 ;; =============================================================================
@@ -278,7 +349,7 @@
 ;;    block height and `VOTING-PERIOD`.
 ;;  - Emits `story-created` event.
 ;; Returns: (ok new-story-id)
-(define-public (create-story (prompt (string-utf8 500)))
+(define-public (create-story (prompt (string-utf8 500)))  
   (let (
       (new-story-id (+ (var-get story-counter) u1))
       (initial-round-id (+ (var-get round-counter) u1))
