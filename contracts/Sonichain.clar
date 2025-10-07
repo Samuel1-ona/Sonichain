@@ -9,146 +9,146 @@
 (use-trait nft-tokens 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 
 ;; Error codes
-(define-constant ERR-NOT-FOUND (err u100))
-(define-constant ERR-UNAUTHORIZED (err u101))
-(define-constant ERR-STORY-SEALED (err u102))
-(define-constant ERR-ALREADY-VOTED (err u103))
-(define-constant ERR-NO-SUBMISSIONS (err u104))
-(define-constant ERR-INSUFFICIENT-BLOCKS (err u105))
-(define-constant ERR-INVALID-AMOUNT (err u106))
-(define-constant ERR-TRANSFER-FAILED (err u107))
-(define-constant ERR-VOTING-CLOSED (err u108))
-(define-constant ERR-ALREADY-FINALIZED (err u109))
-(define-constant ERR-VOTING-NOT-ENDED (err u110))
-(define-constant ERR-ALREADY-SUBMITTED (err u111))
+(define-constant ERR-NOT-FOUND (err u100))        ;; requested entity does not exist
+(define-constant ERR-UNAUTHORIZED (err u101))     ;; caller is not allowed to perform the operation
+(define-constant ERR-STORY-SEALED (err u102))     ;; story is sealed or action would seal-bypass
+(define-constant ERR-ALREADY-VOTED (err u103))    ;; voter already voted in the given round
+(define-constant ERR-NO-SUBMISSIONS (err u104))    ;; no submissions available to select a winner
+(define-constant ERR-INSUFFICIENT-BLOCKS (err u105))  ;; not enough finalized blocks to seal
+(define-constant ERR-INVALID-AMOUNT (err u106))    ;; invalid amount (e.g., zero) for bounty funding
+(define-constant ERR-TRANSFER-FAILED (err u107))   ;; token/STX transfer failure
+(define-constant ERR-VOTING-CLOSED (err u108))     ;; voting window has closed or not active.
+(define-constant ERR-ALREADY-FINALIZED (err u109)) ;; round already finalized
+(define-constant ERR-VOTING-NOT-ENDED (err u110))  ;; cannot finalize before round end
+(define-constant ERR-ALREADY-SUBMITTED (err u111)) ;; user already submitted in this round
 
 ;; Configuration
 (define-constant CONTRACT-OWNER tx-sender)
-(define-constant VOTING-PERIOD u120) ;; ~2 hours in blocks
-(define-constant MIN-BLOCKS-TO-SEAL u5) ;; Minimum story length
-(define-constant MAX-BLOCKS-PER-STORY u50) ;; Maximum story length
-(define-constant PLATFORM-FEE-BPS u250) ;; 2.5% platform fee (basis points)
+(define-constant VOTING-PERIOD u120) ;; number of blocks the round stays open for voting.
+(define-constant MIN-BLOCKS-TO-SEAL u5) ;;minimum finalized blocks required to seal a story.
+(define-constant MAX-BLOCKS-PER-STORY u50) ;; hard cap on blocks in a story.
+(define-constant PLATFORM-FEE-BPS u250) ;; platform fee in basis points taken from bounty on sealing.
 
 ;; =============================================================================
 ;; DATA STRUCTURES
 ;; =============================================================================
 
 ;; Global counters
-(define-data-var story-counter uint u0)
-(define-data-var submission-counter uint u0)
-(define-data-var round-counter uint u0)
+(define-data-var story-counter uint u0)    ;; counter for story-id
+(define-data-var submission-counter uint u0) ;; counter for submission-id
+(define-data-var round-counter uint u0)      ;; counter for round-id
 
 ;; Story metadata
 (define-map stories
   { story-id: uint }
   {
-    prompt: (string-utf8 500),
-    creator: principal,
-    is-sealed: bool,
-    created-at: uint,
-    total-blocks: uint,
-    bounty-pool: uint,
-    current-round: uint,
+    prompt: (string-utf8 500),     ;; story prompt
+    creator: principal,             ;; creator of the story
+    is-sealed: bool,                ;; whether the story is sealed
+    created-at: uint,              ;; block height when story was created
+    total-blocks: uint,            ;; total blocks in the story
+    bounty-pool: uint,             ;; bounty pool for the story
+    current-round: uint,            ;; current round of the story
   }
 )
 
 ;; Voting rounds per story
 (define-map rounds
   {
-    story-id: uint,
-    round-num: uint,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
   }
   {
-    round-id: uint,
-    start-block: uint,
-    end-block: uint,
-    is-finalized: bool,
-    winning-submission: (optional uint),
+    round-id: uint,                 ;; round-id
+    start-block: uint,              ;; block height when the round starts
+    end-block: uint,                ;; block height when the round ends
+    is-finalized: bool,             ;; whether the round is finalized
+    winning-submission: (optional uint), ;; winning submission id
     total-votes: uint,
   }
 )
 
 ;; Submissions for each round
 (define-map submissions
-  { submission-id: uint }
+  { submission-id: uint }             ;; submission-id
   {
-    story-id: uint,
-    round-num: uint,
-    uri: (string-ascii 512),
-    contributor: principal,
-    submitted-at: uint,
-    vote-count: uint,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
+    uri: (string-ascii 512),         ;; uri of the submission
+    contributor: principal,          ;; contributor of the submission
+    submitted-at: uint,              ;; block height when the submission was made
+    vote-count: uint,                ;; number of votes the submission has
   }
 )
 
 ;; Submission indexing: track all submissions per round
 (define-map round-submissions
   {
-    story-id: uint,
-    round-num: uint,
-    index: uint,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
+    index: uint,                     ;; index of the submission
   }
-  { submission-id: uint }
+  { submission-id: uint }             ;; submission-id
 )
 
 (define-map round-submission-count
   {
-    story-id: uint,
-    round-num: uint,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
   }
-  { count: uint }
+  { count: uint }                     ;; number of submissions in the round
 )
 
 ;; Vote tracking: one vote per user per round
 (define-map votes
   {
-    story-id: uint,
-    round-num: uint,
-    voter: principal,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
+    voter: principal,                ;; voter of the submission
   }
-  { submission-id: uint }
+  { submission-id: uint }             ;; submission-id
 )
 
 ;; Finalized story chain (immutable history)
 (define-map story-chain
   {
-    story-id: uint,
-    block-index: uint,
+    story-id: uint,                 ;; story-id
+    block-index: uint,              ;; block index of the submission
   }
   {
-    submission-id: uint,
-    contributor: principal,
-    finalized-at: uint,
+    submission-id: uint,            ;; submission-id
+    contributor: principal,          ;; contributor of the submission
+    finalized-at: uint,              ;; block height when the submission was finalized
   }
 )
 
 ;; Track contributors for reward distribution
 (define-map contributor-blocks
   {
-    story-id: uint,
-    contributor: principal,
+    story-id: uint,                 ;; story-id
+    contributor: principal,          ;; contributor of the submission
   }
-  { block-count: uint }
+  { block-count: uint }             ;; number of blocks the contributor has contributed to the story
 )
 
 ;; Submission tracking per user per round (prevent duplicate submissions)
 (define-map user-round-submissions
   {
-    story-id: uint,
-    round-num: uint,
-    user: principal,
+    story-id: uint,                 ;; story-id
+    round-num: uint,                ;; round number
+    user: principal,                 ;; user of the submission
   }
-  { submission-id: uint }
+  { submission-id: uint }             ;; submission-id
 )
 
 ;; =============================================================================
 ;; READ-ONLY FUNCTIONS
 ;; =============================================================================
-
+;; Read-only functions to get story, round, submission, etc.
 (define-read-only (get-story (story-id uint))
   (map-get? stories { story-id: story-id })
 )
-
+;; Get round data
 (define-read-only (get-round
     (story-id uint)
     (round-num uint)
@@ -158,11 +158,11 @@
     round-num: round-num,
   })
 )
-
+;; Get submission data
 (define-read-only (get-submission (submission-id uint))
   (map-get? submissions { submission-id: submission-id })
 )
-
+;; Get story chain block data
 (define-read-only (get-story-chain-block
     (story-id uint)
     (block-index uint)
@@ -172,7 +172,7 @@
     block-index: block-index,
   })
 )
-
+;; Check if a voter has voted for a submission
 (define-read-only (has-voted
     (story-id uint)
     (round-num uint)
@@ -184,7 +184,7 @@
     voter: voter,
   }))
 )
-
+;; Get user vote
 (define-read-only (get-user-vote
     (story-id uint)
     (round-num uint)
@@ -196,7 +196,7 @@
     voter: voter,
   })
 )
-
+;; Get contributor stats
 (define-read-only (get-contributor-stats
     (story-id uint)
     (contributor principal)
@@ -208,7 +208,7 @@
     })
   )
 )
-
+;; Get round submission count
 (define-read-only (get-round-submission-count
     (story-id uint)
     (round-num uint)
@@ -221,7 +221,7 @@
       })
     ))
 )
-
+;; Get round submission at index
 (define-read-only (get-round-submission-at
     (story-id uint)
     (round-num uint)
@@ -233,7 +233,7 @@
     index: index,
   })
 )
-
+;; Check if voting is active
 (define-read-only (is-voting-active
     (story-id uint)
     (round-num uint)
@@ -247,7 +247,7 @@
     false
   )
 )
-
+;; Check if a round can be finalized
 (define-read-only (can-finalize-round
     (story-id uint)
     (round-num uint)
@@ -266,6 +266,18 @@
 ;; =============================================================================
 
 ;; Create a new story with initial prompt (genesis block)
+;; create-story(prompt)
+;; Purpose: Initializes a new story and its first voting round.
+;; Params:
+;;  - prompt: (string-utf8 500) human-readable genesis prompt for the story.
+;; Effects:
+;;  - Increments global counters and writes a new entry into `stories` with
+;;    default fields (is-sealed = false, bounty-pool = u0, total-blocks = u0,
+;;    current-round = u1).
+;;  - Creates round #1 in `rounds` with start/end window derived from current
+;;    block height and `VOTING-PERIOD`.
+;;  - Emits `story-created` event.
+;; Returns: (ok new-story-id)
 (define-public (create-story (prompt (string-utf8 500)))
   (let (
       (new-story-id (+ (var-get story-counter) u1))
@@ -313,6 +325,22 @@
 )
 
 ;; Submit a voice memo for the current round
+;; submit-block(story-id, uri)
+;; Purpose: Adds a new voice memo submission to the story's current round.
+;; Params:
+;;  - story-id: uint identifier of the story to submit to.
+;;  - uri: (string-ascii 512) content reference for the voice memo (e.g., IPFS).
+;; Preconditions:
+;;  - Story exists and is not sealed.
+;;  - Caller has not already submitted in the current round.
+;;  - Current block height is within the round's voting window.
+;;  - Story has not reached MAX-BLOCKS-PER-STORY.
+;; Effects:
+;;  - Creates a new submission with vote-count = 0 and indexes it in the round.
+;;  - Increments the per-round submission count and global submission counter.
+;;  - Tracks that the caller has submitted for this round.
+;; Events: Emits "submission-created" with submission, story, round, contributor.
+;; Returns: (ok submission-id) on success, appropriate error otherwise.
 (define-public (submit-block
     (story-id uint)
     (uri (string-ascii 512))
@@ -388,7 +416,19 @@
   )
 )
 
-;; Vote for a submission (one vote per user per round)
+;; vote-block(submission-id)
+;; Purpose: Cast a vote for a specific submission in its story round.
+;; Params:
+;;  - submission-id: uint identifier of the submission to vote for.
+;; Preconditions:
+;;  - Submission exists; its story and round exist.
+;;  - Story is not sealed; round is currently voting-active.
+;;  - Caller has not already voted in that round.
+;; Effects:
+;;  - Records caller's vote in `votes` for the round.
+;;  - Increments the submission's `vote-count` and the round's `total-votes`.
+;; Events: Emits "vote-cast" with submission, voter, story, and round.
+;; Returns: (ok true) on success, or appropriate error code.
 (define-public (vote-block (submission-id uint))
   (let (
       (submission (unwrap! (get-submission submission-id) ERR-NOT-FOUND))
@@ -535,6 +575,24 @@
 )
 
 ;; Finalize a round by selecting the winning submission
+;; finalize-round(story-nft, story-id, round-num)
+;; Purpose: Finalizes a voting round by selecting the winning submission,
+;;          minting a reward NFT to its contributor, and progressing the story.
+;; Params:
+;;  - story-nft: <nft-tokens> trait reference for the NFT contract.
+;;  - story-id: uint identifier of the story.
+;;  - round-num: uint round number to finalize.
+;; Preconditions:
+;;  - Round exists, is not already finalized, and voting period has ended.
+;;  - At least one submission exists for the round.
+;; Effects:
+;;  - Determines the winner by highest vote-count (ties resolved by reducer order).
+;;  - Marks round finalized and records winning submission.
+;;  - Appends a block to `story-chain` and mints an NFT to the winner.
+;;  - Updates contributor stats and increments story `total-blocks`.
+;;  - Starts the next round unless max blocks reached; bumps `round-counter`.
+;; Events: Emits "round-finalized" with story, round, winner, contributor.
+;; Returns: (ok winning-submission-id) on success, or appropriate error.
 (define-public (finalize-round
     (story-nft <nft-tokens>)
     (story-id uint)
@@ -648,6 +706,19 @@
 ;; =============================================================================
 
 ;; Add funds to story bounty pool
+;; fund-bounty(story-id, amount)
+;; Purpose: Adds STX funds to the story's bounty pool held by this contract.
+;; Params:
+;;  - story-id: uint identifier of the story to fund.
+;;  - amount: uint amount of microSTX to transfer into the bounty pool.
+;; Preconditions:
+;;  - Story exists and is not sealed.
+;;  - amount > 0.
+;; Effects:
+;;  - Transfers `amount` STX from caller to the contract.
+;;  - Increases `stories.bounty-pool` by `amount`.
+;; Events: Emits "bounty-funded" with story id, amount, funder, and new total.
+;; Returns: (ok true) on success, or error on invalid amount / sealed story / transfer failure.
 (define-public (fund-bounty
     (story-id uint)
     (amount uint)
@@ -737,6 +808,22 @@
 )
 
 ;; Seal story and distribute rewards to contributors
+;; seal-story(story-id)
+;; Purpose: Finalizes the entire story after minimum finalized blocks are met,
+;;          marks it sealed, charges platform fee, and distributes bounty.
+;; Params:
+;;  - story-id: uint identifier of the story to seal.
+;; Preconditions:
+;;  - Caller is the story creator.
+;;  - Story is not already sealed.
+;;  - Story has at least `MIN-BLOCKS-TO-SEAL` finalized blocks.
+;; Effects:
+;;  - Sets `is-sealed = true` on the story.
+;;  - Transfers platform fee to `CONTRACT-OWNER` and distributes remaining bounty
+;;    proportionally across finalized blocks to contributors.
+;; Events: Emits "story-sealed" including story id, total blocks, distributed bounty,
+;;         and platform fee.
+;; Returns: (ok story-id) on success, or an appropriate error code.
 (define-public (seal-story (story-id uint))
   (let (
       (story (unwrap! (get-story story-id) ERR-NOT-FOUND))
@@ -802,19 +889,4 @@
   )
 )
 
-;; (duplicate distribute-rewards and distribute-rewards-iter removed)
 
-;; =============================================================================
-;; CONTRACT INITIALIZATION
-;; =============================================================================
-
-(begin
-  (print {
-    event: "contract-deployed",
-    contract: "EchoChain-V2",
-    owner: CONTRACT-OWNER,
-    voting-period: VOTING-PERIOD,
-    min-blocks: MIN-BLOCKS-TO-SEAL,
-    max-blocks: MAX-BLOCKS-PER-STORY,
-  })
-)
