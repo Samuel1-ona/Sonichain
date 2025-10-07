@@ -1,4 +1,4 @@
-;; EchoChain V2 - Collaborative Voice Story Protocol
+;; Sonichain - Collaborative Voice Story Protocol
 ;; A decentralized story-building game where players contribute voice memos
 ;; to create evolving narrative chains with voting consensus and rewards.
 
