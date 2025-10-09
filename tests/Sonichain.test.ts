@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { Cl } from "@stacks/transactions";
 
-describe("EchoChain V2 - Collaborative Voice Story Protocol", () => {
+describe("Sonichain - Collaborative Voice Story Protocol", () => {
   const accounts = simnet.getAccounts();
   const wallet1 = accounts.get("wallet_1")!;
   const wallet2 = accounts.get("wallet_2")!;
@@ -518,7 +518,7 @@ describe("EchoChain V2 - Collaborative Voice Story Protocol", () => {
         const { result: finalizeRes } = simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "finalize-round",
-          [Cl.contractPrincipal(simnet.deployer, "Soni_NFT"), Cl.uint(1), Cl.uint(i + 1)],
+          [Cl.uint(1), Cl.uint(i + 1)],
           wallet1
         );
         expect(finalizeRes).toBeOk(Cl.uint(i + 1));
@@ -669,9 +669,49 @@ describe("EchoChain V2 - Collaborative Voice Story Protocol", () => {
       expect(result).toBeNone();
     });
 
-    // it("should prevent submissions to sealed stories", () => {
-    //   // This would require full story completion flow
-    //   // Leaving as placeholder for integration test
-    // });
+    it("should prevent submissions to sealed stories", () => {
+      // Create story
+      simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "create-story",
+        [Cl.stringUtf8("Sealed Story Test")],
+        wallet1
+      );
+
+      // Finalize 5 rounds to meet MIN-BLOCKS-TO-SEAL
+      for (let i = 0; i < 5; i++) {
+        simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "submit-block",
+          [Cl.uint(1), Cl.stringAscii(`ipfs://sealed-block-${i}`)],
+          accounts.get(`wallet_${(i % 3) + 1}`)!
+        );
+        simnet.mineEmptyBlocks(150);
+        simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "finalize-round",
+          [Cl.uint(1), Cl.uint(i + 1)],
+          wallet1
+        );
+      }
+
+      // Seal story
+      const { result: sealRes } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "seal-story",
+        [Cl.uint(1)],
+        wallet1
+      );
+      expect(sealRes).toBeOk(Cl.uint(1));
+
+      // Attempt submission after seal should fail
+      const { result: submitAfterSeal } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "submit-block",
+        [Cl.uint(1), Cl.stringAscii("ipfs://after-seal")],
+        wallet2
+      );
+      expect(submitAfterSeal).toBeErr(Cl.uint(102)); // ERR-STORY-SEALED
+    });
   });
 });

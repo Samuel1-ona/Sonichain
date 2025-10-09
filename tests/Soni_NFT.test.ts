@@ -15,7 +15,7 @@ import { Cl, standardPrincipalCV } from "@stacks/transactions";
     const { result: mint1 } = simnet.callPublicFn(
       `${simnet.deployer}.Soni_NFT`,
       "mint",
-      [standardPrincipalCV(wallet)],
+      [standardPrincipalCV(wallet), Cl.stringAscii("ipfs://token-1")],
       deployer
     );
     expect(mint1).toBeOk(Cl.uint(1));
@@ -36,10 +36,18 @@ import { Cl, standardPrincipalCV } from "@stacks/transactions";
     );
     expect(owner).toBeOk(Cl.some(standardPrincipalCV(wallet)));
 
+    const { result: uri1 } = simnet.callReadOnlyFn(
+      `${simnet.deployer}.Soni_NFT`,
+      "get-token-uri",
+      [Cl.uint(1)],
+      wallet
+    );
+    expect(uri1).toBeOk(Cl.some(Cl.stringAscii("ipfs://token-1")));
+
     const { result: mint2 } = simnet.callPublicFn(
       `${simnet.deployer}.Soni_NFT`,
       "mint",
-      [standardPrincipalCV(wallet)],
+      [standardPrincipalCV(wallet), Cl.stringAscii("ipfs://token-2")],
       deployer
     );
     expect(mint2).toBeOk(Cl.uint(2));
@@ -51,6 +59,14 @@ import { Cl, standardPrincipalCV } from "@stacks/transactions";
       wallet
     );
     expect(tokenId2).toBeOk(Cl.uint(2));
+
+    const { result: uri2 } = simnet.callReadOnlyFn(
+      `${simnet.deployer}.Soni_NFT`,
+      "get-token-uri",
+      [Cl.uint(2)],
+      wallet
+    );
+    expect(uri2).toBeOk(Cl.some(Cl.stringAscii("ipfs://token-2")));
 
     const { result: transfer } = simnet.callPublicFn(
        `${simnet.deployer}.Soni_NFT`,

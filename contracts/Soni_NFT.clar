@@ -1,4 +1,4 @@
-(impl-trait 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
+(impl-trait 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT_Trait.Soni_NFT_Trait)
 
 
 (define-constant contract-owner tx-sender)
@@ -10,12 +10,20 @@
 
 (define-data-var last-token-id uint u0)
 
+;; Map token-id to metadata URI (ascii to match trait)
+(define-map token-uris
+  { token-id: uint }
+  { uri: (string-ascii 256) }
+)
+
 (define-read-only (get-last-token-id)
   (ok (var-get last-token-id))
 )
 
 (define-read-only (get-token-uri (token-id uint))
-  (ok (some ""))
+  (let ((entry (map-get? token-uris { token-id: token-id })))
+    (ok (match entry e (some (get uri e)) none))
+  )
 )
 
 (define-read-only (get-owner (token-id uint))
@@ -32,11 +40,19 @@
   )
 )
 
-(define-public (mint (recipient principal))
+(define-public (mint (recipient principal) (uri (string-ascii 256)))
   (let ((token-id (+ (var-get last-token-id) u1)))
     (asserts! (or (is-eq tx-sender contract-owner) (is-eq contract-caller sonichain-contract)) err-owner-only)
     (try! (nft-mint? Soni_NFT token-id recipient))
+    (map-set token-uris { token-id: token-id } { uri: uri })
     (var-set last-token-id token-id)
+
+    (print {
+      event: "Story winner minted Soni NFT",
+      token-id: token-id,
+      recipient: recipient,
+      uri: uri,
+    })
     (ok token-id)
   )
 )
@@ -52,3 +68,4 @@
     )
   )
 )
+

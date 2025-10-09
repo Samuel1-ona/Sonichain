@@ -63,6 +63,11 @@ plan:
     - id: 0
       transactions:
         - emulated-contract-publish:
+            contract-name: Soni_NFT_Trait
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/Soni_NFT_Trait.clar
+            clarity-version: 3
+        - emulated-contract-publish:
             contract-name: Soni_NFT
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/Soni_NFT.clar

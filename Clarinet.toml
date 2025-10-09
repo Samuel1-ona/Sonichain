@@ -1,7 +1,7 @@
 [project]
 name = 'Sonichain'
-description = ''
-authors = []
+description = "Sonichain is a decentralized story-building game on Stacks where players contribute short voice memos to co-create evolving narrative chains. Rounds determine which contribution becomes canon, and contributors are rewarded with NFTs and an optional bounty pool once the story is sealed."
+authors = ["Samuel X: @Sanuel_Eth"]
 telemetry = true
 cache_dir = './.cache'
 
@@ -12,12 +12,17 @@ path = 'contracts/Soni_NFT.clar'
 clarity_version = 3
 epoch = 'latest'
 
+[contracts.Soni_NFT_Trait]
+path = 'contracts/Soni_NFT_Trait.clar'
+clarity_version = 3
+epoch = 'latest'
+
 [contracts.Sonichain]
 path = 'contracts/Sonichain.clar'
 clarity_version = 3
 epoch = 'latest'
-
-
+[repl.analysis]
+passes = []
 
 [repl.analysis.check_checker]
 strict = false

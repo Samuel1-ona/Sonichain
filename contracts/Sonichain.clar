@@ -6,7 +6,8 @@
 ;; CONSTANTS & ERROR CODES
 ;; =============================================================================
 
-(use-trait nft-tokens 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
+;; (use-trait nft-tokens 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
+(use-trait nft-tokens 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT_Trait.Soni_NFT_Trait)
 
 ;; Error codes
 (define-constant ERR-NOT-FOUND (err u100))        ;; requested entity does not exist
@@ -76,7 +77,7 @@
   {
     story-id: uint,                 ;; story-id
     round-num: uint,                ;; round number
-    uri: (string-ascii 512),         ;; uri of the submission
+    uri: (string-ascii 256),         ;; uri of the submission
     contributor: principal,          ;; contributor of the submission
     submitted-at: uint,              ;; block height when the submission was made
     vote-count: uint,                ;; number of votes the submission has
@@ -320,7 +321,7 @@
 
       ;; Track username for uniqueness
       (map-set usernames { username: username } { user: tx-sender })
-
+      ;; Emit event 
       (print {
         event: "user-registered",
         user: tx-sender,
@@ -382,7 +383,7 @@
       ;; Update counters
       (var-set story-counter new-story-id)
       (var-set round-counter initial-round-id)
-
+      ;; Emit Event
       (print {
         event: "story-created",
         story-id: new-story-id,
@@ -414,7 +415,7 @@
 ;; Returns: (ok submission-id) on success, appropriate error otherwise.
 (define-public (submit-block
     (story-id uint)
-    (uri (string-ascii 512))
+    (uri (string-ascii 256))
   )
   (let (
       (story (unwrap! (get-story story-id) ERR-NOT-FOUND))
@@ -473,7 +474,7 @@
       )
 
       (var-set submission-counter new-submission-id)
-
+       ;; Emit event
       (print {
         event: "submission-created",
         submission-id: new-submission-id,
@@ -534,7 +535,7 @@
       }
         (merge round-data { total-votes: (+ (get total-votes round-data) u1) })
       )
-
+      ;; Emit event
       (print {
         event: "vote-cast",
         submission-id: submission-id,
@@ -665,7 +666,6 @@
 ;; Events: Emits "round-finalized" with story, round, winner, contributor.
 ;; Returns: (ok winning-submission-id) on success, or appropriate error.
 (define-public (finalize-round
-    (story-nft <nft-tokens>)
     (story-id uint)
     (round-num uint)
   )
@@ -684,6 +684,7 @@
         winning-id (match (get-submission winning-id)
           winner (let (
               (contributor (get contributor winner))
+              (win-uri (get uri winner))
               (new-round-num (+ round-num u1))
               (new-round-id (+ (var-get round-counter) u1))
             )
@@ -709,10 +710,17 @@
                 finalized-at: stacks-block-height,
               })
 
-              ;; mint the story to the winner 
+              ;; mint the story to the winner with URI
               (try! (contract-call? 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT
-                mint contributor
+                mint contributor win-uri
               ))
+
+              ;; Emit event
+              (print {
+                event: "Story Minted to winner",
+                Winner: contributor,
+                full_Story: win-uri,
+              })
 
               ;; Update contributor stats
               (let (
@@ -917,6 +925,11 @@
         (try! (as-contract (stx-transfer? platform-fee tx-sender CONTRACT-OWNER)))
         true
       )
+
+      (print {
+        event: "Platform fee paid",
+        platform-fee: platform-fee,
+      })
 
       ;; Distribute rewards
       (if (> distributable u0)
