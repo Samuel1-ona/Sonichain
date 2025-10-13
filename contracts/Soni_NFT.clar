@@ -2,7 +2,7 @@
 
 
 (define-constant contract-owner tx-sender)
-(define-constant sonichain-contract 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Sonichain)
+(define-constant sonichain-contract .Sonichain)
 (define-constant err-owner-only (err u100))
 (define-constant err-not-token-owner (err u101))
 

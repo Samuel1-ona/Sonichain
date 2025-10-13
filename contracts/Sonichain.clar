@@ -285,6 +285,22 @@
 )
 
 
+;; Read function for story-counter
+(define-read-only (get-story-counter)
+  (var-get story-counter)
+)
+
+;; Read function for submission-counter
+(define-read-only (get-submission-counter)
+  (var-get submission-counter)
+)
+
+;; Read function for round-counter
+(define-read-only (get-round-counter)
+  (var-get round-counter)
+)
+
+
 
 
 ;; =============================================================================
