@@ -22,6 +22,7 @@
 (define-constant ERR-ALREADY-FINALIZED (err u109)) ;; round already finalized
 (define-constant ERR-VOTING-NOT-ENDED (err u110))  ;; cannot finalize before round end
 (define-constant ERR-ALREADY-SUBMITTED (err u111)) ;; user already submitted in this round
+(define-constant ERR-ROUND-FULL (err u114)) ;; submissions reached cap for the round
 (define-constant ERR-USERNAME-EXISTS (err u112)) ;; username already taken
 (define-constant ERR-USER-ALREADY-REGISTERED (err u113)) ;; user already registered
 
@@ -31,6 +32,11 @@
 (define-constant MIN-BLOCKS-TO-SEAL u5) ;;minimum finalized blocks required to seal a story.
 (define-constant MAX-BLOCKS-PER-STORY u50) ;; hard cap on blocks in a story.
 (define-constant PLATFORM-FEE-BPS u250) ;; platform fee in basis points taken from bounty on sealing.
+;; New caps
+(define-constant MAX-ROUNDS-PER-STORY u10)
+(define-constant MAX-SUBMISSIONS-PER-ROUND u10)
+;; Index helper for up to 10 items
+(define-constant INDEXES-10 (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9))
 
 ;; =============================================================================
 ;; DATA STRUCTURES
@@ -238,6 +244,27 @@
         round-num: round-num,
       })
     ))
+)
+;; List all round numbers for a story up to MAX-ROUNDS-PER-STORY
+(define-private (collect-round-nums (i uint) (acc {
+  items: (list 10 uint),
+  total: uint,
+}))
+  (if (>= i (get total acc))
+    acc
+    (let ((new-items (unwrap-panic (as-max-len? (concat (get items acc) (list (+ i u1))) u10))))
+      (merge acc { items: new-items })
+    )
+  )
+)
+
+(define-read-only (list-rounds (story-id uint))
+  (match (map-get? stories { story-id: story-id })
+    s (let ((limit (if (> (get current-round s) MAX-ROUNDS-PER-STORY) MAX-ROUNDS-PER-STORY (get current-round s))))
+      (ok (get items (fold collect-round-nums INDEXES-10 { items: (list), total: limit })))
+    )
+    ERR-NOT-FOUND
+  )
 )
 ;; Get round submission at index
 (define-read-only (get-round-submission-at
@@ -455,6 +482,8 @@
       (asserts! (< (get total-blocks story) MAX-BLOCKS-PER-STORY)
         ERR-STORY-SEALED
       )
+      ;; Enforce cap of submissions per round
+      (asserts! (< current-sub-count MAX-SUBMISSIONS-PER-ROUND) ERR-ROUND-FULL)
 
       ;; Create submission
       (map-set submissions { submission-id: new-submission-id } {
@@ -617,6 +646,17 @@
     (ok (get items (fold collect-submission-ids INDEXES-100 acc0)))
   )
 )
+;; List submission ids for a round capped at MAX-SUBMISSIONS-PER-ROUND
+(define-read-only (list-round-submissions
+    (story-id uint)
+    (round-num uint)
+  )
+  (let ((raw (get-round-submission-count story-id round-num)))
+    (let ((count (if (> raw MAX-SUBMISSIONS-PER-ROUND) MAX-SUBMISSIONS-PER-ROUND raw)))
+      (build-submission-list story-id round-num count u0)
+    )
+  )
+)
 
 ;; Fold iterator to find submission with highest votes
 (define-private (find-highest-voted-submission
@@ -759,7 +799,7 @@
               )
 
               ;; Start next round (if not at max blocks)
-              (if (< (+ current-blocks u1) MAX-BLOCKS-PER-STORY)
+              (if (and (< (+ current-blocks u1) MAX-BLOCKS-PER-STORY) (<= new-round-num MAX-ROUNDS-PER-STORY))
                 (begin
                   (map-set rounds {
                     story-id: story-id,
