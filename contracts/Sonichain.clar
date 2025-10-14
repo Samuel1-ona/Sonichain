@@ -475,6 +475,8 @@
     (begin
       ;; Validations
       (asserts! (not (get is-sealed story)) ERR-STORY-SEALED)
+      ;; Enforce cap of submissions per round first
+      (asserts! (< current-sub-count MAX-SUBMISSIONS-PER-ROUND) ERR-ROUND-FULL)
       (asserts! (is-none existing-submission) ERR-ALREADY-SUBMITTED)
       (asserts! (<= stacks-block-height (get end-block round-data))
         ERR-VOTING-CLOSED
@@ -482,8 +484,6 @@
       (asserts! (< (get total-blocks story) MAX-BLOCKS-PER-STORY)
         ERR-STORY-SEALED
       )
-      ;; Enforce cap of submissions per round
-      (asserts! (< current-sub-count MAX-SUBMISSIONS-PER-ROUND) ERR-ROUND-FULL)
 
       ;; Create submission
       (map-set submissions { submission-id: new-submission-id } {

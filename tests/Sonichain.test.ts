@@ -714,4 +714,138 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       expect(submitAfterSeal).toBeErr(Cl.uint(102)); // ERR-STORY-SEALED
     });
   });
+
+  describe("Listing helpers and caps", () => {
+    it("should list rounds tied to a story", () => {
+      const prompt = "Rounds Listing Story";
+      const { result: storyRes } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "create-story",
+        [Cl.stringUtf8(prompt)],
+        wallet1
+      );
+      expect(storyRes).toBeOk(Cl.uint(1));
+
+      const { result: rounds1 } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "list-rounds",
+        [Cl.uint(1)],
+        wallet1
+      );
+      // Initially only round 1 exists
+      expect(rounds1).toBeOk(Cl.list([Cl.uint(1)]));
+    });
+
+    it("should not create more than 10 rounds for a story", () => {
+      const prompt = "Rounds Cap Story";
+      simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "create-story",
+        [Cl.stringUtf8(prompt)],
+        wallet1
+      );
+
+      // Create and finalize 10 rounds; next finalization attempt should fail with not found
+      for (let i = 0; i < 10; i++) {
+        // submit once for current round
+        simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "submit-block",
+          [Cl.uint(1), Cl.stringAscii(`ipfs://block-${i}`)],
+          accounts.get(`wallet_${(i % 3) + 1}`)!
+        );
+        simnet.mineEmptyBlocks(150);
+        const { result: fin } = simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "finalize-round",
+          [Cl.uint(1), Cl.uint(i + 1)],
+          wallet1
+        );
+        expect(fin).toBeOk(Cl.uint(i + 1));
+      }
+
+      // Attempt to finalize round 11 should error (round not found => ERR u100)
+      const { result: fin11 } = simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "finalize-round",
+        [Cl.uint(1), Cl.uint(11)],
+        wallet1
+      );
+      expect(fin11).toBeErr(Cl.uint(100));
+
+      const expectedRounds = [
+        Cl.uint(1), Cl.uint(2), Cl.uint(3), Cl.uint(4), Cl.uint(5),
+        Cl.uint(6), Cl.uint(7), Cl.uint(8), Cl.uint(9), Cl.uint(10),
+      ];
+      const { result: roundsList } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "list-rounds",
+        [Cl.uint(1)],
+        wallet1
+      );
+      expect(roundsList).toBeOk(Cl.list(expectedRounds));
+
+      // Round 11 should not exist
+      const { result: round11 } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "get-round",
+        [Cl.uint(1), Cl.uint(11)],
+        wallet1
+      );
+      expect(round11).toBeNone();
+    });
+
+    it("should cap submissions per round at 10 and list them", () => {
+      const prompt = "Submissions Cap Story";
+      simnet.callPublicFn(
+        `${simnet.deployer}.Sonichain`,
+        "create-story",
+        [Cl.stringUtf8(prompt)],
+        wallet1
+      );
+
+      // Build a list of available wallets (wallet_1..wallet_N)
+      const submitters: string[] = [];
+      for (let k = 1; k <= 20; k++) {
+        const w = accounts.get(`wallet_${k}`);
+        if (!w) break;
+        submitters.push(w);
+      }
+
+      const toCreate = Math.min(10, submitters.length);
+      for (let i = 0; i < toCreate; i++) {
+        const submitter = submitters[i]!;
+        const { result } = simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "submit-block",
+          [Cl.uint(1), Cl.stringAscii(`ipfs://s-${i}`)],
+          submitter
+        );
+        // Submission ids are global, so just assert Ok
+        expect(result.type).toBe("ok");
+      }
+
+      // Count should be 10
+      const { result: count } = simnet.callReadOnlyFn(
+        `${simnet.deployer}.Sonichain`,
+        "get-round-submission-count",
+        [Cl.uint(1), Cl.uint(1)],
+        wallet1
+      );
+      expect(count).toStrictEqual(Cl.uint(toCreate));
+
+      // 11th submission should be rejected with ERR u114
+      // If we have at least 11 wallets, the 11th submission should hit the cap
+      if (submitters.length >= 11) {
+        const submitter11 = submitters[10]!;
+        const { result: sub11 } = simnet.callPublicFn(
+          `${simnet.deployer}.Sonichain`,
+          "submit-block",
+          [Cl.uint(1), Cl.stringAscii("ipfs://s-11")],
+          submitter11
+        );
+        expect(sub11).toBeErr(Cl.uint(114));
+      }
+    });
+  });
 });
