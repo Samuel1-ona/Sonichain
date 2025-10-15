@@ -16,19 +16,21 @@ Sonichain is a collaborative storytelling game where players contribute voice me
 ### Creating a Story
 
 2. **Start a New Story**
-   - Call `create-story(prompt)` with your story prompt (max 500 characters)
-   - This creates Round 1 and opens the voting window
+   - Call `create-story(prompt, init-time, voting-window)`
+   - `init-time` is an epoch timestamp (uint) for when Round 1 starts
+   - `voting-window` is the per-round duration in seconds (epoch delta)
+   - This creates Round 1 with `start-time = init-time` and `end-time = init-time + voting-window`
    - You become the story creator and can seal it later
    - Example: "A mysterious door appears in the forest..."
 
 ### Contributing to Stories
 
 3. **Submit Voice Memos**
-   - During any active round, call `submit-block(story-id, uri)`
+   - During any active round, call `submit-block(story-id, uri, now)`
    - Upload your voice memo to IPFS or another storage service
    - Provide the URI (max 256 characters) to your voice file
    - You can only submit once per round per story
-   - Each round lasts 144 blocks (approximately 24 hours)
+   - `now` is an epoch timestamp (uint) used for timing validation
 
 4. **Vote on Submissions**
    - Call `vote-block(submission-id)` to vote for your favorite submission
@@ -39,10 +41,12 @@ Sonichain is a collaborative storytelling game where players contribute voice me
 ### Round Finalization
 
 5. **Finalize Rounds**
-   - After the voting window ends, anyone can call `finalize-round(story-id, round-num)`
+   - After the voting window ends, anyone can call `finalize-round(story-id, round-num, now)`
+   - `now` is an epoch timestamp (must be > current round's `end-time`)
    - The submission with the most votes wins
    - The winner receives an NFT containing the full story so far
-   - A new round automatically begins (unless max blocks reached)
+   - A new round automatically begins (unless max blocks reached) with
+     `start-time = prior end-time` and `end-time = prior end-time + voting-window`
 
 ### Story Completion
 
@@ -61,9 +65,10 @@ Sonichain is a collaborative storytelling game where players contribute voice me
 ### Game Mechanics
 
 **Timing:**
-- Each round lasts 144 blocks (~24 hours)
-- Stories can have up to 50 blocks maximum
-- Minimum 5 blocks required to seal a story
+- Rounds use epoch-based timing (no dependency on block height)
+- Round 1: `[init-time, init-time + voting-window]`
+- Round N+1: `[prev end-time, prev end-time + voting-window]`
+- Minimum 5 finalized rounds required to seal a story
 
 **Rewards:**
 - Round winners get NFTs containing the full story
@@ -75,6 +80,8 @@ Sonichain is a collaborative storytelling game where players contribute voice me
 - One submission per user per round
 - Winner determined by highest vote count
 - Ties resolved by submission order
+ - Per-round submission cap: 10 submissions
+ - Per-story round cap: 10 rounds
 
 ### Example Game Flow
 
@@ -90,22 +97,28 @@ Sonichain is a collaborative storytelling game where players contribute voice me
 - `contracts/Sonichain.clar`: Core protocol (stories, rounds, submissions, votes, bounty, sealing)
 - `contracts/Soni_NFT.clar`: Minimal NFT used to reward round winners on finalization (mint the whole story to the winner)
 
-Key constants (see `Sonichain.clar`):
-- `VOTING-PERIOD`: blocks a round remains open
-- `MIN-BLOCKS-TO-SEAL`: finalized blocks required to seal a story
-- `MAX-BLOCKS-PER-STORY`: hard cap on blocks (rounds) per story
-- `PLATFORM-FEE-BPS`: platform fee on sealing (taken from bounty)
+Key parameters and limits (see `Sonichain.clar`):
+- `MIN-BLOCKS-TO-SEAL`: finalized rounds required to seal a story (u5)
+- `MAX-BLOCKS-PER-STORY`: hard cap on rounds per story (u50 for legacy, flow stops at 10)
+- `MAX-ROUNDS-PER-STORY`: enforced cap (u10)
+- `MAX-SUBMISSIONS-PER-ROUND`: enforced cap (u10)
+- `PLATFORM-FEE-BPS`: platform fee on sealing (u250)
 
 ### Main Flows
-- Create story: initializes metadata and Round 1 with a voting window
-- Submit block: adds a voice memo to the current round; one submission per user per round
-- Vote block: one vote per user per round; increments submission and round tallies
-- Finalize round: picks winner (highest vote-count), mints reward NFT, advances to next round
-- Fund bounty: anyone can fund; disbursed on sealing
-- Seal story: creator-only; validates minimum finalized blocks, charges platform fee, distributes bounty pro-rata to contributors
+- Create story: `create-story(prompt, init-time, voting-window)` → initializes metadata and Round 1 with epoch times
+- Submit block: `submit-block(story-id, uri, now)` → adds a voice memo to the current round (≤10 submissions/round)
+- Vote block: `vote-block(submission-id)` → one vote per user per round; increments submission and round tallies
+- Finalize round: `finalize-round(story-id, round-num, now)` → picks winner (highest vote-count), mints reward NFT, advances to next round (≤10 rounds/story)
+- Fund bounty: `fund-bounty(story-id, amount)` → anyone can fund; disbursed on sealing
+- Seal story: `seal-story(story-id)` → creator-only; validates minimum finalized blocks, charges platform fee, distributes bounty equally per finalized block
 
 
 
 ### Notes
 - NFT minting is triggered by round finalization and requires `Soni_NFT` to authorize calls from the `Sonichain` contract.
 - Sealing distributes bounty equally per finalized block.
+- Read-only helpers:
+  - `list-rounds(story-id)` → up to 10 round numbers
+  - `list-round-submissions(story-id, round-num)` → up to 10 submission IDs
+  - `is-voting-active-at(story-id, round-num, now)`
+  - `can-finalize-round-at(story-id, round-num, now)`
