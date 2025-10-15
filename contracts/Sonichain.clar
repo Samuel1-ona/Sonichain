@@ -9,6 +9,7 @@
 ;; (use-trait nft-tokens 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
 (use-trait nft-tokens 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT_Trait.Soni_NFT_Trait)
 
+
 ;; Error codes
 (define-constant ERR-NOT-FOUND (err u100))        ;; requested entity does not exist
 (define-constant ERR-UNAUTHORIZED (err u101))     ;; caller is not allowed to perform the operation
@@ -28,7 +29,7 @@
 
 ;; Configuration
 (define-constant CONTRACT-OWNER tx-sender)
-(define-constant VOTING-PERIOD u144) ;; number of blocks the round stays open for voting.
+(define-constant VOTING-PERIOD u144) ;; legacy: not used for timing anymore (epoch-based windows now)
 (define-constant MIN-BLOCKS-TO-SEAL u5) ;;minimum finalized blocks required to seal a story.
 (define-constant MAX-BLOCKS-PER-STORY u50) ;; hard cap on blocks in a story.
 (define-constant PLATFORM-FEE-BPS u250) ;; platform fee in basis points taken from bounty on sealing.
@@ -54,7 +55,9 @@
     prompt: (string-utf8 500),     ;; story prompt
     creator: principal,             ;; creator of the story
     is-sealed: bool,                ;; whether the story is sealed
-    created-at: uint,              ;; block height when story was created
+    created-at: uint,              ;; epoch when story was created
+    init-time: uint,               ;; epoch start time for round 1
+    voting-window: uint,           ;; epoch window length per round
     total-blocks: uint,            ;; total blocks in the story
     bounty-pool: uint,             ;; bounty pool for the story
     current-round: uint,            ;; current round of the story
@@ -69,8 +72,8 @@
   }
   {
     round-id: uint,                 ;; round-id
-    start-block: uint,              ;; block height when the round starts
-    end-block: uint,                ;; block height when the round ends
+    start-time: uint,              ;; epoch when the round starts
+    end-time: uint,                ;; epoch when the round ends
     is-finalized: bool,             ;; whether the round is finalized
     winning-submission: (optional uint), ;; winning submission id
     total-votes: uint,
@@ -85,7 +88,7 @@
     round-num: uint,                ;; round number
     uri: (string-ascii 256),         ;; uri of the submission
     contributor: principal,          ;; contributor of the submission
-    submitted-at: uint,              ;; block height when the submission was made
+    submitted-at: uint,              ;; epoch when the submission was made
     vote-count: uint,                ;; number of votes the submission has
   }
 )
@@ -127,7 +130,7 @@
   {
     submission-id: uint,            ;; submission-id
     contributor: principal,          ;; contributor of the submission
-    finalized-at: uint,              ;; block height when the submission was finalized
+    finalized-at: uint,              ;; epoch when the submission was finalized
   }
 )
 
@@ -279,28 +282,30 @@
   })
 )
 ;; Check if voting is active
-(define-read-only (is-voting-active
+(define-read-only (is-voting-active-at
     (story-id uint)
     (round-num uint)
+    (now uint)
   )
   (match (get-round story-id round-num)
     round-data (and
       (not (get is-finalized round-data))
-      (<= stacks-block-height (get end-block round-data))
-      (>= stacks-block-height (get start-block round-data))
+      (<= now (get end-time round-data))
+      (>= now (get start-time round-data))
     )
     false
   )
 )
 ;; Check if a round can be finalized
-(define-read-only (can-finalize-round
+(define-read-only (can-finalize-round-at
     (story-id uint)
     (round-num uint)
+    (now uint)
   )
   (match (get-round story-id round-num)
     round-data (and
       (not (get is-finalized round-data))
-      (> stacks-block-height (get end-block round-data))
+      (> now (get end-time round-data))
     )
     false
   )
@@ -393,7 +398,7 @@
 ;;    block height and `VOTING-PERIOD`.
 ;;  - Emits `story-created` event.
 ;; Returns: (ok new-story-id)
-(define-public (create-story (prompt (string-utf8 500)))  
+(define-public (create-story (prompt (string-utf8 500)) (init-time uint) (voting-window uint))  
   (let (
       (new-story-id (+ (var-get story-counter) u1))
       (initial-round-id (+ (var-get round-counter) u1))
@@ -404,7 +409,9 @@
         prompt: prompt,
         creator: tx-sender,
         is-sealed: false,
-        created-at: stacks-block-height,
+        created-at: init-time,
+        init-time: init-time,
+        voting-window: voting-window,
         total-blocks: u0,
         bounty-pool: u0,
         current-round: u1,
@@ -416,8 +423,8 @@
         round-num: u1,
       } {
         round-id: initial-round-id,
-        start-block: stacks-block-height,
-        end-block: (+ stacks-block-height VOTING-PERIOD),
+        start-time: init-time,
+        end-time: (+ init-time voting-window),
         is-finalized: false,
         winning-submission: none,
         total-votes: u0,
@@ -459,6 +466,7 @@
 (define-public (submit-block
     (story-id uint)
     (uri (string-ascii 256))
+    (now uint)
   )
   (let (
       (story (unwrap! (get-story story-id) ERR-NOT-FOUND))
@@ -478,7 +486,7 @@
       ;; Enforce cap of submissions per round first
       (asserts! (< current-sub-count MAX-SUBMISSIONS-PER-ROUND) ERR-ROUND-FULL)
       (asserts! (is-none existing-submission) ERR-ALREADY-SUBMITTED)
-      (asserts! (<= stacks-block-height (get end-block round-data))
+      (asserts! (<= now (get end-time round-data))
         ERR-VOTING-CLOSED
       )
       (asserts! (< (get total-blocks story) MAX-BLOCKS-PER-STORY)
@@ -491,7 +499,7 @@
         round-num: current-round,
         uri: uri,
         contributor: tx-sender,
-        submitted-at: stacks-block-height,
+        submitted-at: now,
         vote-count: u0,
       })
 
@@ -558,7 +566,8 @@
       ;; Validations
       (asserts! (not (get is-sealed story)) ERR-STORY-SEALED)
       (asserts! (not (has-voted story-id round-num tx-sender)) ERR-ALREADY-VOTED)
-      (asserts! (is-voting-active story-id round-num) ERR-VOTING-CLOSED)
+      ;; For backward compatibility, allow without time check here; clients should use is-voting-active-at before voting
+      (asserts! (not (get is-finalized round-data)) ERR-VOTING-CLOSED)
 
       ;; Record vote
       (map-set votes {
@@ -724,16 +733,18 @@
 (define-public (finalize-round
     (story-id uint)
     (round-num uint)
+    (now uint)
   )
   (let (
       (story (unwrap! (get-story story-id) ERR-NOT-FOUND))
       (round-data (unwrap! (get-round story-id round-num) ERR-NOT-FOUND))
       (current-blocks (get total-blocks story))
+      (voting-window (get voting-window story))
     )
     (begin
       ;; Validations
       (asserts! (not (get is-finalized round-data)) ERR-ALREADY-FINALIZED)
-      (asserts! (can-finalize-round story-id round-num) ERR-VOTING-NOT-ENDED)
+      (asserts! (can-finalize-round-at story-id round-num now) ERR-VOTING-NOT-ENDED)
 
       ;; Get winning submission
       (match (get-winning-submission story-id round-num)
@@ -763,7 +774,7 @@
               } {
                 submission-id: winning-id,
                 contributor: contributor,
-                finalized-at: stacks-block-height,
+                finalized-at: now,
               })
 
               ;; mint the story to the winner with URI
@@ -806,8 +817,8 @@
                     round-num: new-round-num,
                   } {
                     round-id: new-round-id,
-                    start-block: stacks-block-height,
-                    end-block: (+ stacks-block-height VOTING-PERIOD),
+                    start-time: (get end-time round-data),
+                    end-time: (+ (get end-time round-data) voting-window),
                     is-finalized: false,
                     winning-submission: none,
                     total-votes: u0,

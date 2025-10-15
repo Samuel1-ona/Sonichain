@@ -6,6 +6,10 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
   const wallet1 = accounts.get("wallet_1")!;
   const wallet2 = accounts.get("wallet_2")!;
   const wallet3 = accounts.get("wallet_3")!;
+  const initTime = 1_700_000_000;
+  const votingWindow = 600;
+  const withinRound1 = initTime + 1;
+  const afterRound1 = initTime + votingWindow + 1;
 
   describe("User Registration", () => {
     it("should allow users to register with unique usernames", () => {
@@ -121,7 +125,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8(prompt)],
+        [Cl.stringUtf8(prompt), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -145,7 +149,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8(prompt)],
+        [Cl.stringUtf8(prompt), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -167,7 +171,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Test Story Prompt")],
+        [Cl.stringUtf8("Test Story Prompt"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
     });
@@ -178,7 +182,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii(voiceURI)],
+        [Cl.uint(1), Cl.stringAscii(voiceURI), Cl.uint(withinRound1)],
         wallet2
       );
 
@@ -203,7 +207,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: first } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii(voiceURI1)],
+        [Cl.uint(1), Cl.stringAscii(voiceURI1), Cl.uint(withinRound1)],
         wallet2
       );
       expect(first).toBeOk(Cl.uint(1));
@@ -212,7 +216,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: second } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii(voiceURI2)],
+        [Cl.uint(1), Cl.stringAscii(voiceURI2), Cl.uint(withinRound1)],
         wallet2
       );
       expect(second).toBeErr(Cl.uint(111)); // ERR-ALREADY-SUBMITTED
@@ -225,7 +229,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: submission1 } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii(voiceURI1)],
+        [Cl.uint(1), Cl.stringAscii(voiceURI1), Cl.uint(withinRound1)],
         wallet2
       );
       expect(submission1).toBeOk(Cl.uint(1));
@@ -233,7 +237,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: submission2 } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii(voiceURI2)],
+        [Cl.uint(1), Cl.stringAscii(voiceURI2), Cl.uint(withinRound1)],
         wallet3
       );
       expect(submission2).toBeOk(Cl.uint(2));
@@ -246,21 +250,21 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Voting Test Story")],
+        [Cl.stringUtf8("Voting Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://submission1")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://submission1"), Cl.uint(withinRound1)],
         wallet2
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://submission2")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://submission2"), Cl.uint(withinRound1)],
         wallet3
       );
     });
@@ -333,14 +337,14 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Test Story")],
+        [Cl.stringUtf8("Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://test")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://test"), Cl.uint(withinRound1)],
         wallet2
       );
 
@@ -354,8 +358,8 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       // Try to finalize immediately (should fail)
       const { result: canFinalize } = simnet.callReadOnlyFn(
         `${simnet.deployer}.Sonichain`,
-        "can-finalize-round",
-        [Cl.uint(1), Cl.uint(1)],
+        "can-finalize-round-at",
+        [Cl.uint(1), Cl.uint(1), Cl.uint(withinRound1)],
         wallet1
       );
 
@@ -367,14 +371,14 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Test Story")],
+        [Cl.stringUtf8("Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://test")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://test"), Cl.uint(withinRound1)],
         wallet2
       );
 
@@ -391,8 +395,8 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       // Check if can finalize
       const { result: canFinalize } = simnet.callReadOnlyFn(
         `${simnet.deployer}.Sonichain`,
-        "can-finalize-round",
-        [Cl.uint(1), Cl.uint(1)],
+        "can-finalize-round-at",
+        [Cl.uint(1), Cl.uint(1), Cl.uint(afterRound1)],
         wallet1
       );
 
@@ -404,7 +408,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Test Story")],
+        [Cl.stringUtf8("Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -412,21 +416,21 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://submission1")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://submission1"), Cl.uint(withinRound1)],
         wallet1
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://submission2")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://submission2"), Cl.uint(withinRound1)],
         wallet2
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://submission3")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://submission3"), Cl.uint(withinRound1)],
         wallet3
       );
 
@@ -471,7 +475,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Bounty Test Story")],
+        [Cl.stringUtf8("Bounty Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
     });
@@ -507,18 +511,15 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
         simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "submit-block",
-          [Cl.uint(1), Cl.stringAscii(`ipfs://block${i}`)],
+          [Cl.uint(1), Cl.stringAscii(`ipfs://block${i}`), Cl.uint(initTime + i * votingWindow + 1)],
           accounts.get(`wallet_${(i % 3) + 1}`)!
         );
-
-        // Advance beyond voting period
-        simnet.mineEmptyBlocks(150);
 
         // Finalize current round i+1 (ok expected)
         const { result: finalizeRes } = simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "finalize-round",
-          [Cl.uint(1), Cl.uint(i + 1)],
+          [Cl.uint(1), Cl.uint(i + 1), Cl.uint(initTime + (i + 1) * votingWindow + 1)],
           wallet1
         );
         expect(finalizeRes).toBeOk(Cl.uint(i + 1));
@@ -549,7 +550,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Short Story")],
+        [Cl.stringUtf8("Short Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -568,7 +569,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Story")],
+        [Cl.stringUtf8("Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -589,14 +590,14 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Read Test Story")],
+        [Cl.stringUtf8("Read Test Story"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://test")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://test"), Cl.uint(withinRound1)],
         wallet2
       );
     });
@@ -626,8 +627,8 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
     it("should check voting active status", () => {
       const { result } = simnet.callReadOnlyFn(
         `${simnet.deployer}.Sonichain`,
-        "is-voting-active",
-        [Cl.uint(1), Cl.uint(1)],
+        "is-voting-active-at",
+        [Cl.uint(1), Cl.uint(1), Cl.uint(withinRound1)],
         wallet1
       );
 
@@ -674,7 +675,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8("Sealed Story Test")],
+        [Cl.stringUtf8("Sealed Story Test"), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -683,14 +684,13 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
         simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "submit-block",
-          [Cl.uint(1), Cl.stringAscii(`ipfs://sealed-block-${i}`)],
+          [Cl.uint(1), Cl.stringAscii(`ipfs://sealed-block-${i}`), Cl.uint(initTime + i * votingWindow + 1)],
           accounts.get(`wallet_${(i % 3) + 1}`)!
         );
-        simnet.mineEmptyBlocks(150);
         simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "finalize-round",
-          [Cl.uint(1), Cl.uint(i + 1)],
+          [Cl.uint(1), Cl.uint(i + 1), Cl.uint(initTime + (i + 1) * votingWindow + 1)],
           wallet1
         );
       }
@@ -708,7 +708,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: submitAfterSeal } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "submit-block",
-        [Cl.uint(1), Cl.stringAscii("ipfs://after-seal")],
+        [Cl.uint(1), Cl.stringAscii("ipfs://after-seal"), Cl.uint(initTime + 6 * votingWindow + 1)],
         wallet2
       );
       expect(submitAfterSeal).toBeErr(Cl.uint(102)); // ERR-STORY-SEALED
@@ -721,7 +721,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: storyRes } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8(prompt)],
+        [Cl.stringUtf8(prompt), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
       expect(storyRes).toBeOk(Cl.uint(1));
@@ -741,7 +741,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8(prompt)],
+        [Cl.stringUtf8(prompt), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -751,14 +751,13 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
         simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "submit-block",
-          [Cl.uint(1), Cl.stringAscii(`ipfs://block-${i}`)],
+          [Cl.uint(1), Cl.stringAscii(`ipfs://block-${i}`), Cl.uint(initTime + i * votingWindow + 1)],
           accounts.get(`wallet_${(i % 3) + 1}`)!
         );
-        simnet.mineEmptyBlocks(150);
         const { result: fin } = simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "finalize-round",
-          [Cl.uint(1), Cl.uint(i + 1)],
+          [Cl.uint(1), Cl.uint(i + 1), Cl.uint(initTime + (i + 1) * votingWindow + 1)],
           wallet1
         );
         expect(fin).toBeOk(Cl.uint(i + 1));
@@ -768,7 +767,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       const { result: fin11 } = simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "finalize-round",
-        [Cl.uint(1), Cl.uint(11)],
+        [Cl.uint(1), Cl.uint(11), Cl.uint(initTime + 11 * votingWindow + 1)],
         wallet1
       );
       expect(fin11).toBeErr(Cl.uint(100));
@@ -800,7 +799,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       simnet.callPublicFn(
         `${simnet.deployer}.Sonichain`,
         "create-story",
-        [Cl.stringUtf8(prompt)],
+        [Cl.stringUtf8(prompt), Cl.uint(initTime), Cl.uint(votingWindow)],
         wallet1
       );
 
@@ -813,12 +812,13 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
       }
 
       const toCreate = Math.min(10, submitters.length);
+      const nowInRound = initTime + 1; // ensure all submissions are within the same round window
       for (let i = 0; i < toCreate; i++) {
         const submitter = submitters[i]!;
         const { result } = simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "submit-block",
-          [Cl.uint(1), Cl.stringAscii(`ipfs://s-${i}`)],
+          [Cl.uint(1), Cl.stringAscii(`ipfs://s-${i}`), Cl.uint(nowInRound)],
           submitter
         );
         // Submission ids are global, so just assert Ok
@@ -841,7 +841,7 @@ describe("Sonichain - Collaborative Voice Story Protocol", () => {
         const { result: sub11 } = simnet.callPublicFn(
           `${simnet.deployer}.Sonichain`,
           "submit-block",
-          [Cl.uint(1), Cl.stringAscii("ipfs://s-11")],
+          [Cl.uint(1), Cl.stringAscii("ipfs://s-11"), Cl.uint(nowInRound)],
           submitter11
         );
         expect(sub11).toBeErr(Cl.uint(114));

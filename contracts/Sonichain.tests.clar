@@ -15,9 +15,9 @@
 )
 
 ;; Test story creation with fuzzed prompts
-(define-public (test-create-story-fuzz (prompt (string-utf8 500)))
+(define-public (test-create-story-fuzz (prompt (string-utf8 500)) (init-time uint) (voting-window uint))
   (contract-call? .Sonichain
-    create-story prompt
+    create-story prompt init-time voting-window
   )
 )
 
@@ -25,9 +25,10 @@
 (define-public (test-submit-block-fuzz 
     (story-id uint)
     (uri (string-ascii 256))
+    (now uint)
   )
   (contract-call? .Sonichain
-    submit-block story-id uri
+    submit-block story-id uri now
   )
 )
 
@@ -52,9 +53,10 @@
 (define-public (test-finalize-round-fuzz 
     (story-id uint)
     (round-num uint)
+    (now uint)
   )
   (contract-call? .Sonichain
-    finalize-round story-id round-num
+    finalize-round story-id round-num now
   )
 )
 
@@ -90,9 +92,9 @@
 )
 
 ;; Test that story creation works correctly
-(define-public (test-story-creation-counters (prompt (string-utf8 500)))
+(define-public (test-story-creation-counters (prompt (string-utf8 500)) (init-time uint) (voting-window uint))
   (contract-call? .Sonichain
-    create-story prompt
+    create-story prompt init-time voting-window
   )
 )
 
@@ -144,9 +146,10 @@
 (define-public (test-submission-constraints 
     (story-id uint)
     (uri (string-ascii 256))
+    (now uint)
   )
   (contract-call? .Sonichain
-    submit-block story-id uri
+    submit-block story-id uri now
   )
 )
 
@@ -155,10 +158,11 @@
     (story-id uint)
     (round-num uint)
     (submission-id uint)
+    (now uint)
   )
   (let (
       (voting-active (contract-call? .Sonichain
-        is-voting-active story-id round-num
+        is-voting-active-at story-id round-num now
       ))
       (vote-result (contract-call? .Sonichain
         vote-block submission-id
@@ -179,13 +183,14 @@
 (define-public (test-round-finalization-constraints 
     (story-id uint)
     (round-num uint)
+    (now uint)
   )
   (let (
       (can-finalize (contract-call? .Sonichain
-        can-finalize-round story-id round-num
+        can-finalize-round-at story-id round-num now
       ))
       (finalize-result (contract-call? .Sonichain
-        finalize-round story-id round-num
+        finalize-round story-id round-num now
       ))
     )
     (begin
@@ -208,11 +213,12 @@
     (story-id uint)
     (uri (string-ascii 256))
     (iterations uint)
+    (now uint)
   )
   (begin
     ;; Simplified test - just attempt one submission
     (try! (contract-call? .Sonichain
-      submit-block story-id uri
+      submit-block story-id uri now
     ))
     (ok true)
   )
