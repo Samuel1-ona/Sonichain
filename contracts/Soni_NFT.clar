@@ -42,7 +42,7 @@
 
 (define-public (mint (recipient principal) (uri (string-ascii 256)))
   (let ((token-id (+ (var-get last-token-id) u1)))
-    (asserts! (or (is-eq tx-sender contract-owner) (is-eq contract-caller sonichain-contract)) err-owner-only)
+    (asserts! (is-eq contract-caller sonichain-contract) err-owner-only)
     (try! (nft-mint? Soni_NFT token-id recipient))
     (map-set token-uris { token-id: token-id } { uri: uri })
     (var-set last-token-id token-id)

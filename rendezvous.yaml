@@ -1,0 +1,71 @@
+contracts:
+  - name: Sonichain
+    address: "{{deployer}}"
+  - name: Sonichain.tests
+    address: "{{deployer}}"
+
+generators:
+  username:
+    type: string
+    maxLen: 20
+  prompt:
+    type: string
+    maxLen: 120
+  uri:
+    type: ascii
+    maxLen: 64
+  story_id:
+    type: uint
+    min: 1
+    max: 5
+  round_num:
+    type: uint
+    min: 1
+    max: 10
+  epoch_init:
+    type: uint
+    min: 1700000000
+    max: 1700000300
+  epoch_window:
+    type: uint
+    min: 60
+    max: 1200
+  epoch_now_inside:
+    type: uint
+    min: 1700000001
+    max: 1700000599
+  epoch_now_after:
+    type: uint
+    min: 1700001201
+    max: 1700002400
+
+scenarios:
+  - name: register-user fuzz
+    calls:
+      - contract: Sonichain.tests
+        method: test-register-user-fuzz
+        args: ["{{username}}"]
+
+  - name: create-story fuzz
+    calls:
+      - contract: Sonichain.tests
+        method: test-create-story-fuzz
+        args: ["{{prompt}}", "{{epoch_init}}", "{{epoch_window}}"]
+
+  - name: submit-block fuzz (within window)
+    calls:
+      - contract: Sonichain.tests
+        method: test-submit-block-fuzz
+        args: ["{{story_id}}", "{{uri}}", "{{epoch_now_inside}}"]
+
+  - name: finalize-round fuzz (after window)
+    calls:
+      - contract: Sonichain.tests
+        method: test-finalize-round-fuzz
+        args: ["{{story_id}}", "{{round_num}}", "{{epoch_now_after}}"]
+
+  - name: voting window checks
+    calls:
+      - contract: Sonichain.tests
+        method: test-voting-window-constraints
+        args: ["{{story_id}}", "{{round_num}}", "{{round_num}}", "{{epoch_now_inside}}"]
