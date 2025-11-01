@@ -29,21 +29,21 @@ plan:
         - contract-publish:
             contract-name: Soni_NFT
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 18410
+            cost: 18030
             path: contracts/Soni_NFT.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: Sonichain
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 330310
+            cost: 333660
             path: contracts/Sonichain.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: Sonichain_tests
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 67520
+            cost: 70000
             path: contracts/Sonichain.tests.clar
             anchor-block-only: true
             clarity-version: 3

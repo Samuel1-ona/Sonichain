@@ -10,25 +10,18 @@ contract_id = 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait'
 [contracts.Soni_NFT]
 path = 'contracts/Soni_NFT.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = 3.0
 
 [contracts.Soni_NFT_Trait]
 path = 'contracts/Soni_NFT_Trait.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = 3.0
 
 [contracts.Sonichain]
 path = 'contracts/Sonichain.clar'
 clarity_version = 3
-epoch = 'latest'
-
-[contracts.Sonichain_tests]
-path = 'contracts/Sonichain.tests.clar'
-clarity_version = 3
-epoch = 'latest'
-[repl.analysis]
-passes = []
-
+epoch = 3.0
+depends_on = ['Soni_NFT_Trait', 'Soni_NFT']
 
 [repl.analysis.check_checker]
 strict = true
@@ -37,5 +30,5 @@ trusted_caller = false
 callee_filter = false
 
 [repl.remote_data]
-enabled = true
+enabled = false
 api_url = 'https://api.hiro.so'

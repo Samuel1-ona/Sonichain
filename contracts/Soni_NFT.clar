@@ -1,4 +1,4 @@
-(impl-trait 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT_Trait.Soni_NFT_Trait)
+(impl-trait .Soni_NFT_Trait.Soni_NFT_Trait)
 
 
 (define-constant contract-owner tx-sender)

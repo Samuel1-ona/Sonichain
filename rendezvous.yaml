@@ -1,7 +1,7 @@
 contracts:
-  - name: Sonichain
+  - name: Soni_NFT
     address: "{{deployer}}"
-  - name: Sonichain.tests
+  - name: Sonichain
     address: "{{deployer}}"
 
 generators:
@@ -42,30 +42,36 @@ generators:
 scenarios:
   - name: register-user fuzz
     calls:
-      - contract: Sonichain.tests
+      - contract: Sonichain
         method: test-register-user-fuzz
         args: ["{{username}}"]
 
   - name: create-story fuzz
     calls:
-      - contract: Sonichain.tests
+      - contract: Sonichain
         method: test-create-story-fuzz
         args: ["{{prompt}}", "{{epoch_init}}", "{{epoch_window}}"]
 
   - name: submit-block fuzz (within window)
     calls:
-      - contract: Sonichain.tests
+      - contract: Sonichain
         method: test-submit-block-fuzz
         args: ["{{story_id}}", "{{uri}}", "{{epoch_now_inside}}"]
 
-  - name: finalize-round fuzz (after window)
+  - name: vote-block fuzz
     calls:
-      - contract: Sonichain.tests
-        method: test-finalize-round-fuzz
-        args: ["{{story_id}}", "{{round_num}}", "{{epoch_now_after}}"]
+      - contract: Sonichain
+        method: test-vote-block-fuzz
+        args: ["{{story_id}}"]
+
+  - name: fund-bounty fuzz
+    calls:
+      - contract: Sonichain
+        method: test-fund-bounty-fuzz
+        args: ["{{story_id}}", "{{epoch_init}}"]
 
   - name: voting window checks
     calls:
-      - contract: Sonichain.tests
+      - contract: Sonichain
         method: test-voting-window-constraints
-        args: ["{{story_id}}", "{{round_num}}", "{{round_num}}", "{{epoch_now_inside}}"]
+        args: ["{{story_id}}", "{{round_num}}", "{{story_id}}", "{{epoch_now_inside}}"]

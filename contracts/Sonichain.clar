@@ -7,7 +7,7 @@
 ;; =============================================================================
 
 ;; (use-trait nft-tokens 'SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.nft-trait)
-(use-trait nft-tokens 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT_Trait.Soni_NFT_Trait)
+(use-trait nft-tokens .Soni_NFT_Trait.Soni_NFT_Trait)
 
 
 ;; Error codes
@@ -778,7 +778,7 @@
               })
 
               ;; mint the story to the winner with URI
-              (try! (contract-call? 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.Soni_NFT
+              (try! (contract-call? .Soni_NFT
                 mint contributor win-uri
               ))
 
@@ -1039,5 +1039,6 @@
     acc
   )
 )
+
 
 

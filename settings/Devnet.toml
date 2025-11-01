@@ -119,16 +119,16 @@ disable_stacks_api = false
 # bitcoin_explorer_image_url = "quay.io/hirosystems/bitcoin-explorer:devnet"
 # postgres_image_url = "postgres:alpine"
 
-# epoch_2_0 = 100
-# epoch_2_05 = 100
-# epoch_2_1 = 101
-# epoch_2_2 = 102
-# epoch_2_3 = 103
-# epoch_2_4 = 104
-# epoch_2_5 = 108
-# epoch_3_0 = 142
-# epoch_3_1 = 144
-# epoch_3_2 = 146
+epoch_2_0 = 100
+epoch_2_05 = 100
+epoch_2_1 = 101
+epoch_2_2 = 102
+epoch_2_3 = 103
+epoch_2_4 = 104
+epoch_2_5 = 108
+epoch_3_0 = 142
+epoch_3_1 = 144
+epoch_3_2 = 146
 
 # Send some stacking orders
 [[devnet.pox_stacking_orders]]

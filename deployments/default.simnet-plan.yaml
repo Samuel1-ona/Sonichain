@@ -58,9 +58,18 @@ genesis:
     - pox-4
     - signers
     - signers-voting
+    - costs-4
 plan:
   batches:
     - id: 0
+      transactions:
+        - emulated-contract-publish:
+            contract-name: nft-trait
+            emulated-sender: SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9
+            path: "./.cache/requirements/SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.clar"
+            clarity-version: 1
+      epoch: "2.1"
+    - id: 1
       transactions:
         - emulated-contract-publish:
             contract-name: Soni_NFT_Trait
@@ -77,9 +86,4 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/Sonichain.clar
             clarity-version: 3
-        - emulated-contract-publish:
-            contract-name: Sonichain_tests
-            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            path: contracts/Sonichain.tests.clar
-            clarity-version: 3
-      epoch: "3.2"
+      epoch: "3.0"

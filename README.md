@@ -2,6 +2,8 @@
 
 Sonichain is a decentralized story-building game on Stacks where players contribute short voice memos to co-create evolving narrative chains. Rounds determine which contribution becomes canon, and contributors are rewarded with NFTs and an optional bounty pool once the story is sealed.
 
+SoniChain is a voice-based blockchain game where players co-create stories block by block using their voices. Each voice clip becomes a “block” in the story chain voted on by the community, rewarded with NFTs, funded bounties, and sealed forever on the blockchain.
+
 ## How to Play Sonichain
 
 Sonichain is a collaborative storytelling game where players contribute voice memos to build evolving narrative chains. Here's how to get started and play:
