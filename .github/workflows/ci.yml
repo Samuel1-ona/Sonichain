@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Generate deployment plan
+        run: clarinet deployments generate --simnet
+      
       - name: Format Clarity contracts
         run: clarinet format --in-place
       
