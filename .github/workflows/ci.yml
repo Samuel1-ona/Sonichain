@@ -37,11 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run fuzz tests
-        run: npx rv . Sonichain test 
-
-        
+      - name: Run property-based fuzz tests
+        run: npx rv . Sonichain test
       
+      - name: Run invariant fuzz tests
+        run: npx rv . Sonichain invariant
 
   tests:
     runs-on: ubuntu-latest

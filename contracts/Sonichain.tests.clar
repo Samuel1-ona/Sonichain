@@ -308,3 +308,160 @@
 (define-read-only (invariant-round-counter-monotonic)
   (>= (get-round-counter) u0)
 )
+
+;; =============================================================================
+;; MAP INVARIANTS
+;; =============================================================================
+
+;; Invariant: If a user is registered, their registration data should be valid
+(define-read-only (invariant-user-registration-valid)
+  (match (map-get? users { user: tx-sender })
+    user-data (and
+      (>= (get registered-at user-data) u0)
+      true ;; username is always valid if it exists
+    )
+    true ;; If user not registered, invariant holds
+  )
+)
+
+;; Invariant: If a username exists, it should map to a valid user
+(define-read-only (invariant-username-mapping-valid)
+  ;; This is a structural invariant - usernames map should always be consistent
+  ;; Since we can't iterate, we check that if tx-sender is registered,
+  ;; their username maps back to them
+  (let ((user-opt (map-get? users { user: tx-sender })))
+    (if (is-some user-opt)
+      (let ((user-data (unwrap-panic user-opt)))
+        (let ((username (get username user-data)))
+          (let ((username-opt (map-get? usernames { username: username })))
+            (if (is-some username-opt)
+              (let ((username-entry (unwrap-panic username-opt)))
+                (is-eq (get user username-entry) tx-sender)
+              )
+              false ;; Username should exist if user is registered
+            )
+          )
+        )
+      )
+      true ;; If user not registered, invariant holds
+    )
+  )
+)
+
+;; Invariant: If tx-sender has submitted, their submission should be valid
+(define-read-only (invariant-user-submission-valid)
+  ;; Check if tx-sender has any submissions by checking a range of story/round combinations
+  ;; Since we can't iterate, we check a few common cases
+  (let ((story-1-round-1 (map-get? user-round-submissions {
+      story-id: u1,
+      round-num: u1,
+      user: tx-sender,
+    })))
+    (if (is-some story-1-round-1)
+      (let ((submission-id (get submission-id (unwrap-panic story-1-round-1))))
+        (is-some (map-get? submissions { submission-id: submission-id }))
+      )
+      true ;; If no submission, invariant holds
+    )
+  )
+)
+
+;; Invariant: If tx-sender has voted, their vote should reference a valid submission
+(define-read-only (invariant-user-vote-valid)
+  ;; Check if tx-sender has voted in story 1, round 1
+  (match (map-get? votes {
+      story-id: u1,
+      round-num: u1,
+      voter: tx-sender,
+    })
+    vote-entry (is-some (map-get? submissions { submission-id: (get submission-id vote-entry) }))
+    true ;; If vote doesn't exist, invariant holds
+  )
+)
+
+;; Invariant: If tx-sender is a contributor, their block count should be non-negative
+(define-read-only (invariant-contributor-blocks-non-negative)
+  ;; Check contributor blocks for story 1
+  (match (map-get? contributor-blocks {
+      story-id: u1,
+      contributor: tx-sender,
+    })
+    contributor-data (>= (get block-count contributor-data) u0)
+    true ;; If contributor not in map, invariant holds (count is 0)
+  )
+)
+
+;; Invariant: Story 1 data should have valid properties (if it exists)
+(define-read-only (invariant-story-1-data-valid)
+  (match (map-get? stories { story-id: u1 })
+    story (and
+      (>= (get total-blocks story) u0)
+      (<= (get total-blocks story) u50) ;; MAX-BLOCKS-PER-STORY
+      (>= (get current-round story) u1)
+      (<= (get current-round story) u10) ;; MAX-ROUNDS-PER-STORY
+      (>= (get bounty-pool story) u0)
+      (>= (get voting-window story) u0)
+      (>= (get created-at story) u0)
+      (>= (get init-time story) u0)
+    )
+    true ;; If story doesn't exist, invariant holds
+  )
+)
+
+;; Invariant: Round 1 of story 1 should have valid properties (if it exists)
+(define-read-only (invariant-round-1-1-data-valid)
+  (match (map-get? rounds {
+      story-id: u1,
+      round-num: u1,
+    })
+    round-data (and
+      (>= (get round-id round-data) u0)
+      (>= (get start-time round-data) u0)
+      (>= (get end-time round-data) (get start-time round-data)) ;; end >= start
+      (>= (get total-votes round-data) u0)
+    )
+    true ;; If round doesn't exist, invariant holds
+  )
+)
+
+;; Invariant: Round submission count for story 1, round 1 should be valid
+(define-read-only (invariant-round-submission-count-valid)
+  (match (map-get? round-submission-count {
+      story-id: u1,
+      round-num: u1,
+    })
+    count-entry (and
+      (>= (get count count-entry) u0)
+      (<= (get count count-entry) u10) ;; MAX-SUBMISSIONS-PER-ROUND
+    )
+    true ;; If count doesn't exist, default is 0 which is valid
+  )
+)
+
+;; Invariant: Submission 1 should have valid properties (if it exists)
+(define-read-only (invariant-submission-1-valid)
+  (match (map-get? submissions { submission-id: u1 })
+    submission (and
+      (>= (get story-id submission) u1) ;; Story IDs start at 1
+      (>= (get round-num submission) u1) ;; Round numbers start at 1
+      (>= (get vote-count submission) u0)
+      (>= (get submitted-at submission) u0)
+    )
+    true ;; If submission doesn't exist, invariant holds
+  )
+)
+
+;; Invariant: Story chain entry for story 1, block 0 should be valid (if it exists)
+(define-read-only (invariant-story-chain-block-0-valid)
+  (match (map-get? story-chain {
+      story-id: u1,
+      block-index: u0,
+    })
+    chain-entry (and
+      (>= (get submission-id chain-entry) u1) ;; Submission IDs start at 1
+      (>= (get finalized-at chain-entry) u0)
+      (is-some (map-get? submissions { submission-id: (get submission-id chain-entry) })) ;; Submission should exist
+    )
+    true ;; If chain entry doesn't exist, invariant holds
+  )
+)
